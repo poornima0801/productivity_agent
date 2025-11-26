@@ -1,17 +1,15 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+# Explicitly load .env from your Codespace directory
+load_dotenv(dotenv_path="/workspaces/productivity_agent/.env")
 
 from openai import OpenAI
+
+# Initialize once with API key
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-
-
 import json
-from openai import OpenAI
-
-client = OpenAI()
 
 # ------------------------
 # Simple JSON-based storage
