@@ -1,19 +1,15 @@
 import os
+import json
 from dotenv import load_dotenv
 
-# Explicitly load .env from your Codespace directory
-load_dotenv(dotenv_path="/workspaces/productivity_agent/.env")
+# Load environment variables
+load_dotenv()
 
-from openai import OpenAI
+import google.generativeai as genai
 
-# Initialize once with API key
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"),
-    project=os.getenv("OPENAI_PROJECT_ID")
-)
-
-
-import json
+# Configure Gemini
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 # ------------------------
 # Simple JSON-based storage
@@ -78,15 +74,14 @@ def classify_intent(message):
 
 
 # ------------------------
-# Main Agent
+# Main Gemini Agent
 # ------------------------
 def ai_agent(user_input):
 
     intent = classify_intent(user_input)
-
     tool_output = None
 
-    # route to correct tool
+    # Route to correct tool
     if intent == "add_task":
         task_desc = user_input.replace("add task", "").replace("remember", "")
         tool_output = add_task(task_desc.strip())
@@ -101,20 +96,17 @@ def ai_agent(user_input):
     elif intent == "list_tasks":
         tool_output = list_tasks()
 
-    # system prompt
-    system_msg = f"""
-    You are a helpful productivity AI assistant.
+    # Construct prompt for Gemini
+    prompt = f"""
+    You are a helpful productivity assistant.
     Intent: {intent}
     Tool output: {tool_output}
-    If tool_output exists, you MUST use it in your final answer.
+
+    If tool_output exists, USE it to answer the user.
+
+    User message: {user_input}
     """
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": system_msg},
-            {"role": "user", "content": user_input}
-        ]
-    )
-
-    return response.choices[0].message["content"]
+    # Generate Gemini response
+    response = model.generate_content(prompt)
+    return response.text
