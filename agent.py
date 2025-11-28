@@ -37,15 +37,14 @@ def call_gemini(prompt):
 
     try:
         response.raise_for_status()
-    except Exception as e:
+    except Exception:
         return f"❌ Gemini API Error: {response.text}"
 
-    # Extract model response
     return response.json()["candidates"][0]["content"]["parts"][0]["text"]
 
 
 # ------------------------
-# Simple JSON Task Storage
+# JSON Task Storage
 # ------------------------
 TASK_FILE = "tasks.json"
 
@@ -62,7 +61,7 @@ def save_tasks(tasks):
 
 
 # ------------------------
-# Agent Tools
+# Tools (Add, Complete, List Tasks)
 # ------------------------
 def add_task(task_desc):
     tasks = load_tasks()
@@ -96,4 +95,47 @@ def list_tasks():
 def classify_intent(message):
     msg = message.lower()
 
-    if "add task" in msg or "remember" in msg or
+    if "add task" in msg or "remember" in msg or "todo" in msg:
+        return "add_task"
+    if "complete" in msg or "done" in msg or "finish" in msg:
+        return "complete_task"
+    if "list" in msg or "show tasks" in msg:
+        return "list_tasks"
+
+    return "chat"
+
+
+# ------------------------
+# Main Gemini Agent
+# ------------------------
+def ai_agent(user_input):
+
+    intent = classify_intent(user_input)
+    tool_output = None
+
+    # Route tasks to correct function
+    if intent == "add_task":
+        task_desc = user_input.replace("add task", "").replace("remember", "")
+        tool_output = add_task(task_desc.strip())
+
+    elif intent == "complete_task":
+        nums = [int(s) for s in user_input.split() if s.isdigit()]
+        if nums:
+            tool_output = complete_task(nums[0])
+        else:
+            tool_output = "Which task number?"
+
+    elif intent == "list_tasks":
+        tool_output = list_tasks()
+
+    # Prompt for Gemini
+    prompt = f"""
+You are a helpful productivity assistant.
+Intent: {intent}
+Tool Output: {tool_output}
+
+If tool_output exists, include it naturally in your answer.
+User: {user_input}
+"""
+
+    return call_gemini(prompt)
